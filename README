@@ -1,0 +1,4 @@
+collapse_multifasta.sh - script that removes duplicates from multifasta files and concatenates virus segments
+split_multifasta.sh - script that splits multifasta per segment
+subsampler.py - script that subsamples multifasta based on region, time and homology
+trimmer.py - script that trims multifasta for superfluous sequences
