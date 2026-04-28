@@ -1,15 +1,15 @@
-script|goal|input|output|how to use
+script goal|input|output|how to use
 ---|---|---|---|---
-clean_fasta.sh|converts windows fasta to unix, removes spaces after pipe, removes doubles removes all non nucleotides|"file".fasta|"file"_cleaned.fasta| bash clean_fasta.sh "file".fasta
-cleaner.py||||
-collapse_multifasta.sh||||
-concatenate3.py||||
-concatenator.py||||
-concatenator2.py||||
-fasta_header_fixer.py||||
-remove_double.sh||||
-split_multifasta.sh||||
-subsampler.py||||
-subset_header.py||||
-trimmer.py||||
-welke_mis_ik||||
+clean_fasta.sh|converts windows fasta to unix, removes spaces after pipe, removes doubles, removes all non nucleotides|"file".fasta|"file"_cleaned.fasta|bash clean_fasta.sh "file".fasta
+cleaner.py|removes segment names from a fasta|"file".fasta|"file"_cleaned.fasta|python cleaner.py "file".fasta
+collapse_multifasta.sh|windows to unix, removes spaces after pipe, removes doubles, combines segments in full genome, removes non nucleotides|"file".fasta|"output.fasta"|bash collapse_multifasta.sh "file".fasta "output".fasta
+concatenate3.py|N/A|N/A|N/A|N/A
+concatenator.py|N/A|N/A|N/A|N/A
+concatenator2.py|N/A|N/A|N/A|N/A
+fasta_header_fixer.py|N/A|N/A|N/A|N/A
+remove_double.sh|N/A|N/A|N/A|N/A
+split_multifasta.sh|N/A|N/A|N/A|N/A
+subsampler.py|N/A|N/A|N/A|N/A
+subset_header.py|N/A|N/A|N/A|N/A
+trimmer.py|N/A|N/A|N/A|N/A
+welke_mis_ik|N/A|N/A|N/A|N/A
