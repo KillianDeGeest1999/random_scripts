@@ -1,4 +1,5 @@
 script|goal|input|output|how to use
+---|---|---|---|---
 clean_fasta.sh||||
 cleaner.py||||
 collapse_multifasta.sh||||
