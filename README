@@ -1,4 +1,4 @@
-script goal|input|output|how to use
+script|goal|input|output|how to use
 ---|---|---|---|---
 clean_fasta.sh|converts windows fasta to unix, removes spaces after pipe, removes doubles, removes all non nucleotides|"file".fasta|"file"_cleaned.fasta|bash clean_fasta.sh "file".fasta
 cleaner.py|removes segment names from a fasta|"file".fasta|"file"_cleaned.fasta|python cleaner.py "file".fasta
