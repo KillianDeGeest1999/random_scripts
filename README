@@ -1,3 +1,4 @@
+
 script|goal|input|output|how to use
 ---|---|---|---|---
 clean_fasta.sh|converts windows fasta to unix, removes spaces after pipe, removes doubles, removes all non nucleotides|"file".fasta|"file"_cleaned.fasta|bash clean_fasta.sh "file".fasta
