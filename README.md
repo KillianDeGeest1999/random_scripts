@@ -4,6 +4,7 @@ script|goal|input|output|how to use
 clean_fasta.sh|converts windows fasta to unix, removes spaces after pipe, removes doubles, removes all non nucleotides|"input_file".fasta|"input_file"_cleaned.fasta|bash clean_fasta.sh "input_file".fasta
 cleaner.py|removes segment names from a fasta|"input_file".fasta|"input_file"_cleaned.fasta|python cleaner.py "input_file".fasta
 collapse_multifasta.sh|windows to unix, removes spaces after pipe, removes doubles, concatenates segments in full genome, removes non nucleotides|"input_file".fasta|"output_file.fasta"|bash collapse_multifasta.sh "input_file".fasta "output_file".fasta
+compare_fastas.py | compares sequences with matching IDs between two FASTA files and reports differences using pairwise alignment | file1.fasta + file2.fasta | sequence_differences.txt (alignment + length differences) | python compare_fastas.py
 concatenate3.py|filters old samples if dates are included, orders the segments, concatenates the segments|"input_file".fasta|"output_file".fasta|run local
 concatenator.py|concatenates segments in order|'input_file'.fasta|concatenated_'input_file'.fa|python concatenator.py 'input_file'.fasta
 concatenator2.py|concatenates segments in order|'input_file'.fasta|concatenated_multifasta.fa|python concatenator.py 'input_file'.fasta
