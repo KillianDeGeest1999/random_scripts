@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-fasta_toolkit.py — FASTA utility functions for influenza multi-segment files.
+fasta_toolkit.py -- FASTA utility functions for influenza multi-segment files.
 
 Usage:
     python fasta_toolkit.py <command> [options]
@@ -30,7 +31,7 @@ SEG_ORDER = ["PB2", "PB1", "PA", "HA", "NP", "NA", "MP", "NS"]
 NON_NUC   = re.compile(r"[^ACGTURYSWKMBDHVNacgturyswkmbdhvn?-]")
 
 
-# ── I/O helpers ───────────────────────────────────────────────────────────────
+# -- I/O helpers ---------------------------------------------------------------
 
 def read_fasta(path):
     """Yield (header_without_gt, sequence) tuples."""
@@ -59,7 +60,7 @@ def auto_out(input_path, suffix):
     return os.path.splitext(input_path)[0] + suffix
 
 
-# ── Functions ─────────────────────────────────────────────────────────────────
+# -- Functions -----------------------------------------------------------------
 
 def to_unix(input_file, output_file, sep="|"):
     """
@@ -72,7 +73,7 @@ def to_unix(input_file, output_file, sep="|"):
             line = line.replace("\r", "")
             line = re.sub(re.escape(sep) + r" +", sep, line)
             fout.write(line)
-    print(f"Unix-converted → {output_file}")
+    print(f"Unix-converted -> {output_file}")
 
 
 def remove_doubles(input_file, output_file):
@@ -91,14 +92,14 @@ def remove_doubles(input_file, output_file):
             results.append((header, seq))
             kept += 1
     write_fasta(results, output_file)
-    print(f"Removed {removed} duplicate(s), kept {kept} → {output_file}")
+    print(f"Removed {removed} duplicate(s), kept {kept} -> {output_file}")
 
 
 def fix_nucleotides(input_file, output_file):
     """Replace every character that is not a valid (degenerate) nucleotide with 'n'."""
     results = [(h, NON_NUC.sub("n", s)) for h, s in read_fasta(input_file)]
     write_fasta(results, output_file)
-    print(f"Non-nucleotides replaced → {output_file}")
+    print(f"Non-nucleotides replaced -> {output_file}")
 
 
 def split_by_segment(input_file, output_prefix, sep="|", seg_index=-1):
@@ -117,19 +118,19 @@ def split_by_segment(input_file, output_prefix, sep="|", seg_index=-1):
             field = parts[seg_index]
         except IndexError:
             field = "unknown"
-        segment = field.split("/")[-1].strip() or "unknown"
+        segment = (field.split("/")[-1].split("_")[-1]).strip() or "unknown"
         buckets.setdefault(segment, []).append((header, seq))
 
     for segment, records in buckets.items():
         out_path = f"{base}_{segment}.fasta"
         write_fasta(records, out_path)
-        print(f"  {segment}: {len(records)} sequences → {out_path}")
+        print(f"  {segment}: {len(records)} sequences -> {out_path}")
 
 
 def concatenate(input_file, output_file, sep="|", seg_index=-1):
     """
     Concatenate segments per sample in canonical influenza order:
-    PB2 › PB1 › PA › HA › NP › NA › MP › NS.
+    PB2 > PB1 > PA > HA > NP > NA > MP > NS.
 
     The segment field (seg_index) is stripped from the header to form the sample key.
     Segments missing for a sample are silently skipped.
@@ -137,27 +138,59 @@ def concatenate(input_file, output_file, sep="|", seg_index=-1):
     sep        : field separator in the header (default '|')
     seg_index  : 0-based position of the segment field; -1 = last field (default)
     """
-    sample_segs = {}   # sample_header → {segment_name: sequence}
+    # group_key -> {segment_name: sequence}
+    # group_key -> representative output header (fields minus segment field)
+    sample_segs = {}
+    sample_header = {}
 
     for header, seq in read_fasta(input_file):
         parts = header.split(sep)
         idx = seg_index if seg_index >= 0 else len(parts) + seg_index
         try:
-            segment = parts[idx].split("/")[-1].strip()
-            sample_parts = [p for i, p in enumerate(parts) if i != idx]
-            sample_key = sep.join(sample_parts)
+            raw = parts[idx].strip()
+            segment = raw.split("/")[-1].split("_")[-1]
         except IndexError:
             segment = "unknown"
-            sample_key = header
-        sample_segs.setdefault(sample_key, {})[segment] = seq
+
+        sample_parts = [p for i, p in enumerate(parts) if i != idx]
+
+        # If the first remaining field looks like a bare accession (no "/" in
+        # it) and there are at least 2 fields left, drop it from the group key
+        # so that sequences from the same strain with different accessions
+        # still merge correctly (common in GISAID multi-segment exports).
+        if len(sample_parts) >= 2 and "/" not in sample_parts[0]:
+            group_key = sep.join(sample_parts[1:])
+        else:
+            group_key = sep.join(sample_parts)
+
+        sample_segs.setdefault(group_key, {})[segment] = seq
+        if group_key not in sample_header:
+            sample_header[group_key] = sep.join(sample_parts)
 
     base = os.path.splitext(os.path.basename(input_file))[0]
-    out = output_file or f"concatenated_{base}.fa"
+    out = output_file or "concatenated_{0}.fa".format(base)
+    # Collect all segment names actually found in the file
+    all_found_segs = set()
+    for segs in sample_segs.values():
+        all_found_segs.update(segs.keys())
+    known = [s for s in SEG_ORDER if s in all_found_segs]
+    unknown = sorted(all_found_segs - set(SEG_ORDER))
+    if unknown:
+        print("WARNING: segment name(s) not in canonical order, appended at end: {0}".format(unknown))
+    order = known + unknown
+
+    written = skipped = 0
     with open(out, "w") as fh:
-        for sample_key, segs in sample_segs.items():
-            concat_seq = "".join(segs[s] for s in SEG_ORDER if s in segs)
-            fh.write(f">{sample_key}\n{concat_seq}\n")
-    print(f"Concatenated sequences → {out}")
+        for group_key, segs in sample_segs.items():
+            concat_seq = "".join(segs[s] for s in order if s in segs)
+            if not concat_seq:
+                skipped += 1
+                continue
+            fh.write(">{0}\n{1}\n".format(sample_header[group_key], concat_seq))
+            written += 1
+    if skipped:
+        print("WARNING: {0} sample(s) produced empty sequences and were skipped.".format(skipped))
+    print("Concatenated {0} samples -> {1}".format(written, out))
 
 
 def subset_headers(input_file, output_file, indices, sep="|"):
@@ -179,7 +212,7 @@ def subset_headers(input_file, output_file, indices, sep="|"):
             pass  # read_fasta already strips '>'
         results.append((new_header, seq))
     write_fasta(results, output_file)
-    print(f"Header subset → {output_file}")
+    print(f"Header subset -> {output_file}")
 
 
 def subsample(
@@ -205,11 +238,11 @@ def subsample(
     """
     Subsample a FASTA in up to four sequential steps:
 
-    1. Date filter   — drop sequences outside [date_after, date_before]
-    2. Country filter — apply include/exclude country lists
-    3. Per-group cap  — randomly keep at most max_per_group sequences per
+    1. Date filter   -- drop sequences outside [date_after, date_before]
+    2. Country filter -- apply include/exclude country lists
+    3. Per-group cap  -- randomly keep at most max_per_group sequences per
                         (country, year, month) group
-    4. Similarity     — within each group, remove sequences >= similarity_threshold %
+    4. Similarity     -- within each group, remove sequences >= similarity_threshold %
                         similar to another (longer sequence wins); countries listed in
                         keep_countries are exempt from this step
 
@@ -219,7 +252,7 @@ def subsample(
                               country at slash position country_slash_pos)
         field[date_field]   : YYYY-MM-DD  (or YYYY)
 
-    All filtering steps are optional — only those with a non-None argument run.
+    All filtering steps are optional -- only those with a non-None argument run.
     """
     try:
         from Bio import Align
@@ -230,7 +263,7 @@ def subsample(
             sys.exit("Biopython is required for similarity filtering. "
                      "Install with: pip install biopython")
 
-    # ── helpers ──────────────────────────────────────────────────────────────
+    # -- helpers --------------------------------------------------------------
 
     def parse_date(s):
         """Parse YYYY-MM-DD or YYYY into a date object; return None on failure."""
@@ -270,9 +303,9 @@ def subsample(
         score = aligner.align(seq1, seq2).score
         return score / max(len(seq1), len(seq2)) * 100
 
-    # ── load ─────────────────────────────────────────────────────────────────
+    # -- load -----------------------------------------------------------------
 
-    print(f"[subsample] Reading {input_file} …")
+    print(f"[subsample] Reading {input_file} ...")
     records = list(read_fasta(input_file))
     print(f"  {len(records)} sequences loaded  ({datetime.datetime.now():%H:%M:%S})")
 
@@ -282,21 +315,21 @@ def subsample(
     exc_set  = {c.strip() for c in exclude_countries} if exclude_countries else set()
     keep_set = {c.strip() for c in keep_countries}    if keep_countries    else set()
 
-    # ── step 1 : date filter ─────────────────────────────────────────────────
+    # -- step 1 : date filter -------------------------------------------------
 
     if d_after or d_before:
         before = len(records)
         def date_ok(header):
             _, d = extract_meta(header)
             if d is None:
-                return True          # no date → keep (can't judge)
+                return True          # no date -> keep (can't judge)
             if d_after  and d < d_after:  return False
             if d_before and d > d_before: return False
             return True
         records = [(h, s) for h, s in records if date_ok(h)]
         print(f"  After date filter:    {len(records)}  (removed {before - len(records)})")
 
-    # ── step 2 : country filter ──────────────────────────────────────────────
+    # -- step 2 : country filter ----------------------------------------------
 
     if inc_set or exc_set:
         before = len(records)
@@ -308,7 +341,7 @@ def subsample(
         records = [(h, s) for h, s in records if country_ok(h)]
         print(f"  After country filter: {len(records)}  (removed {before - len(records)})")
 
-    # ── step 3 : per-group cap ───────────────────────────────────────────────
+    # -- step 3 : per-group cap -----------------------------------------------
 
     if max_per_group is not None:
         before = len(records)
@@ -324,7 +357,7 @@ def subsample(
             records.extend(grp)
         print(f"  After per-group cap ({max_per_group}): {len(records)}  (removed {before - len(records)})")
 
-    # ── step 4 : similarity filter ───────────────────────────────────────────
+    # -- step 4 : similarity filter -------------------------------------------
 
     if similarity_threshold is not None:
         before = len(records)
@@ -350,21 +383,21 @@ def subsample(
                     remove_idx.add(drop)
                     n_removed += 1
                     if n_removed % 500 == 0:
-                        print(f"    similarity: removed {n_removed} so far …")
+                        print(f"    similarity: removed {n_removed} so far ...")
 
         records = [(h, s) for idx, (h, s) in enumerate(records) if idx not in remove_idx]
         pct = n_removed / before * 100 if before else 0
-        print(f"  After similarity filter (≥{similarity_threshold}%): "
+        print(f"  After similarity filter (>={similarity_threshold}%): "
               f"{len(records)}  (removed {n_removed} = {pct:.1f}%)")
 
-    # ── write ─────────────────────────────────────────────────────────────────
+    # -- write -----------------------------------------------------------------
 
     out = output_file or auto_out(input_file, "_subsampled.fasta")
     write_fasta(records, out)
-    print(f"  Done → {out}  ({datetime.datetime.now():%H:%M:%S})")
+    print(f"  Done -> {out}  ({datetime.datetime.now():%H:%M:%S})")
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# -- CLI -----------------------------------------------------------------------
 
 def _sep_arg(p):
     p.add_argument("--sep", default="|",
@@ -430,7 +463,7 @@ Header format expected (pipe-separated, 0-based fields):
   field[--sample-field]  type/country/strain  (country at --country-pos in slash-split)
   field[--date-field]    YYYY-MM-DD
 
-Example — keep only 2020-onwards European sequences, max 10/group, >99% similar removed,
+Example -- keep only 2020-onwards European sequences, max 10/group, >99% similar removed,
 but always keep all Belgian sequences:
   python fasta_toolkit.py subsample in.fasta -o out.fasta \\
       --after 2020-01-01 \\
